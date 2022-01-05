@@ -1,10 +1,11 @@
+import sys
+
 import pygame
+from pygame import mouse
 
 from pygame.math import Vector2, Vector3
 
-
 CELL_SIZE = 100
-CELL_TOTAL = CELL_SIZE
 HEADER_HEIGHT = 70
 FOOTER_HEIGHT = 60 
 MARGIN_WIDTH = 50
@@ -17,14 +18,17 @@ TEXT_COLOR = [20, 20, 20]
 SYMBOL_COLOR = TEXT_COLOR
 CELL_DIVIDER_COLOR = [180, 180, 200]
 
+def point_in_rect(point, rect_anchor, rect_span):
+    return (rect_anchor[0] < point[0] < (rect_anchor[0] + rect_span[0])) and (rect_anchor[1] < point[1] < (rect_anchor[1] + rect_span[1]))
+
 class PygameButton:
     BUTTON_DARK_SHIFT = Vector3(50, 50, 50)
     BUTTON_LIGHT_SHIFT = Vector3(15, 15, 15)
 
     def __init__(self, text, size, position, color):
         self.screen = pygame.display.get_surface()
-
         font = pygame.font.SysFont("Arial", 16)
+
         self.text = font.render(text, True, TEXT_COLOR)
         self.size = size
         self.position = Vector2(position)
@@ -32,9 +36,6 @@ class PygameButton:
         self.color = Vector3(color)
         self.color_dark = self.color - PygameButton.BUTTON_DARK_SHIFT
         self.color_light = self.color + PygameButton.BUTTON_LIGHT_SHIFT
-
-        self.callback = None
-        self.callbackArgs = []
 
     def draw(self):
         mouseHovering = self.mouse_hovering()
@@ -49,21 +50,21 @@ class PygameButton:
             pygame.draw.line(self.screen, self.color, self.position + dy, self.position + self.size)
         elif mouseHovering:
             pygame.draw.rect(self.screen, self.color_light, pygame.Rect(self.position, self.size))
-            pygame.draw.line(self.screen, self.color_dark + PygameButton.BUTTON_LIGHT_SHIFT, self.position + dx, self.position + self.size)
-            pygame.draw.line(self.screen, self.color_dark + PygameButton.BUTTON_LIGHT_SHIFT, self.position + dy, self.position + self.size)
+            pygame.draw.line(self.screen, self.color_dark, self.position + dx, self.position + self.size)
+            pygame.draw.line(self.screen, self.color_dark, self.position + dy, self.position + self.size)
         else:
             pygame.draw.rect(self.screen, self.color, pygame.Rect(self.position, self.size))
-            pygame.draw.line(self.screen, self.color_dark + PygameButton.BUTTON_LIGHT_SHIFT, self.position + dx, self.position + self.size)
-            pygame.draw.line(self.screen, self.color_dark + PygameButton.BUTTON_LIGHT_SHIFT, self.position + dy, self.position + self.size)
+            pygame.draw.line(self.screen, self.color_dark, self.position + dx, self.position + self.size)
+            pygame.draw.line(self.screen, self.color_dark, self.position + dy, self.position + self.size)
 
         text_x = self.text.get_size()[0]
-        offset = (self.size[0]/2.0) - (text_x/2.0)
+        offset = 0.5 * (self.size[0] - text_x)
 
         self.screen.blit(self.text, self.position + Vector2(offset, 0))
 
     def mouse_hovering(self):
         mousePos = pygame.mouse.get_pos()
-        return (self.position[0] < mousePos[0] < (self.position[0] + self.size[0])) and (self.position[1] < mousePos[1] < (self.position[1] + self.size[1]))
+        return point_in_rect(mousePos, self.position, self.size)
 
 class PyTicTacToe:
     def __init__(self):
@@ -78,12 +79,12 @@ class PyTicTacToe:
 
         self.reset()
 
-        # Precalculate cell and button anchors
+        # Precalculate cell anchors
         self.cellAnchors = []
 
         for i in range(0, 3):
             for j in range(0, 3):
-                self.cellAnchors.append([MARGIN_WIDTH + j*CELL_TOTAL, HEADER_HEIGHT + i*CELL_TOTAL])
+                self.cellAnchors.append([MARGIN_WIDTH + j*CELL_SIZE, HEADER_HEIGHT + i*CELL_SIZE])
 
         resetButtonTL = Vector2(MARGIN_WIDTH + (CELL_SIZE/2), WINDOW_SIZE_Y - (2/3.0)*FOOTER_HEIGHT)
         resetButtonSize = Vector2(2 * CELL_SIZE, (1.0/3)*FOOTER_HEIGHT)
@@ -91,11 +92,11 @@ class PyTicTacToe:
 
         x = pygame.image.load("x.png")
         x = pygame.transform.scale(x, (CELL_SIZE, CELL_SIZE))
-        self.xButton = x.convert_alpha()
+        self.xSymbol = x.convert_alpha()
 
         o = pygame.image.load("o.png")
         o = pygame.transform.scale(o, (CELL_SIZE, CELL_SIZE))
-        self.oButton = o.convert_alpha()
+        self.oSymbol = o.convert_alpha()
 
         while True:
             event = pygame.event.wait()
@@ -108,7 +109,7 @@ class PyTicTacToe:
                 # Calculate if we clicked a cell
                 mousePos = Vector2(pygame.mouse.get_pos())
 
-                if (MARGIN_WIDTH < mousePos[0] < (WINDOW_SIZE_X - MARGIN_WIDTH)) and (HEADER_HEIGHT < mousePos[1] < (WINDOW_SIZE_Y - FOOTER_HEIGHT)):
+                if point_in_rect(mousePos, [MARGIN_WIDTH, HEADER_HEIGHT], [3 * CELL_SIZE, 3 * CELL_SIZE]):
                     mousePos -= Vector2([MARGIN_WIDTH, HEADER_HEIGHT])
                     cellX = int(mousePos[0] // CELL_SIZE)
                     cellY = int(mousePos[1] // CELL_SIZE)
@@ -136,11 +137,9 @@ class PyTicTacToe:
 
     def reset_values(self):
         self.playerTurn = 0
-        self.headerText = "Player 0's Turn"
-
+        self.headerText = "Player 1's Turn"
         self.cells = {i:None for i in range(0, 9)}
         self.moveCount = 0
-
         self.canPlay = True
 
     def update_gui(self):
@@ -170,7 +169,6 @@ class PyTicTacToe:
     def update_text(self):
         self.screen.fill(BG_COLOR, pygame.Rect((0, 0), (WINDOW_SIZE_X, HEADER_HEIGHT)))
 
-        # Text elements
         ttSurface = self.font.render(self.headerText, True, TEXT_COLOR)
         ttSurfaceSize = ttSurface.get_size()
         ttOffsetX = (0.5)*(WINDOW_SIZE_X - ttSurfaceSize[0])
@@ -188,23 +186,24 @@ class PyTicTacToe:
 
         # draw symbol
         if self.playerTurn == 0:
-            pygame.Surface.blit(self.screen, self.oButton, self.cellAnchors[index])
+            pygame.Surface.blit(self.screen, self.oSymbol, self.cellAnchors[index])
 
         if self.playerTurn == 1:
-            pygame.Surface.blit(self.screen, self.xButton, self.cellAnchors[index])
+            pygame.Surface.blit(self.screen, self.xSymbol, self.cellAnchors[index])
+
+        self.moveCount += 1
 
         if self.check_for_victory():
             self.canPlay = False
             return
-        elif self.moveCount == 9:
+        elif self.moveCount == 9: # board is filled
             self.canPlay = False
             self.headerText = "TIE!"
             self.update_text()
             return
         else:
-            self.moveCount += 1
             self.playerTurn = self.moveCount % 2
-            self.headerText = "Player {}'s Turn".format(self.playerTurn)
+            self.headerText = "Player {}'s Turn".format(self.playerTurn + 1)
             self.update_text()
 
     def check_for_victory(self):
@@ -221,10 +220,9 @@ class PyTicTacToe:
 
         for line in lines:
             if self.cells[line[0]] is not None and self.cells[line[0]] == self.cells[line[1]] == self.cells[line[2]]:
-                print("PLAYER {} WINS!".format(self.playerTurn))
-                self.headerText = "PLAYER {} WINS!".format(self.playerTurn)
+                self.headerText = "PLAYER {} WINS!".format(self.playerTurn + 1)
                 self.update_text()
                 return True
 
 if __name__ == "__main__":
-    game = PyTicTacToe()
+    PyTicTacToe()
