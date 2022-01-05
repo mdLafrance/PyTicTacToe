@@ -66,14 +66,13 @@ class PygameButton:
         return (self.position[0] < mousePos[0] < (self.position[0] + self.size[0])) and (self.position[1] < mousePos[1] < (self.position[1] + self.size[1]))
 
 class PyTicTacToe:
-
     def __init__(self):
         print("Launching PyTicTacToe")
 
         pygame.init()
         pygame.display.set_caption("Tic Tac Toe")
 
-        self.font = pygame.font.SysFont("Arial", 16)
+        self.font = pygame.font.SysFont("Arial", 20)
 
         self.screen = pygame.display.set_mode([WINDOW_SIZE_X, WINDOW_SIZE_Y])
 
@@ -133,17 +132,16 @@ class PyTicTacToe:
     def reset(self):
         self.reset_values()
         self.update_gui()
-        self.update_board()
         self.update_text()
 
     def reset_values(self):
         self.playerTurn = 0
-        self.p1Score = 0
-        self.p2Score = 0
-        self.playerText = ""
+        self.headerText = "Player 0's Turn"
 
         self.cells = {i:None for i in range(0, 9)}
         self.moveCount = 0
+
+        self.canPlay = True
 
     def update_gui(self):
         self.screen.fill(BG_COLOR)
@@ -173,17 +171,16 @@ class PyTicTacToe:
         self.screen.fill(BG_COLOR, pygame.Rect((0, 0), (WINDOW_SIZE_X, HEADER_HEIGHT)))
 
         # Text elements
-        turnText = "Player {}'s Turn".format(self.playerTurn + 1)
-        ttSurface = self.font.render(turnText, True, TEXT_COLOR)
+        ttSurface = self.font.render(self.headerText, True, TEXT_COLOR)
         ttSurfaceSize = ttSurface.get_size()
         ttOffsetX = (0.5)*(WINDOW_SIZE_X - ttSurfaceSize[0])
         ttOffsetY = (0.5)*(HEADER_HEIGHT - ttSurfaceSize[1])
         self.screen.blit(ttSurface, Vector2(ttOffsetX, ttOffsetY))
 
-    def update_board(self):
-        pass
-
     def user_clicked_square(self, index):
+        if not self.canPlay:
+            return
+
         if self.cells[index] is not None:
             return
 
@@ -197,13 +194,18 @@ class PyTicTacToe:
             pygame.Surface.blit(self.screen, self.xButton, self.cellAnchors[index])
 
         if self.check_for_victory():
+            self.canPlay = False
             return
         elif self.moveCount == 9:
-            self.reset()
+            self.canPlay = False
+            self.headerText = "TIE!"
+            self.update_text()
             return
-
-        self.moveCount += 1
-        self.playerTurn = self.moveCount % 2
+        else:
+            self.moveCount += 1
+            self.playerTurn = self.moveCount % 2
+            self.headerText = "Player {}'s Turn".format(self.playerTurn)
+            self.update_text()
 
     def check_for_victory(self):
         lines = (
@@ -220,8 +222,8 @@ class PyTicTacToe:
         for line in lines:
             if self.cells[line[0]] is not None and self.cells[line[0]] == self.cells[line[1]] == self.cells[line[2]]:
                 print("PLAYER {} WINS!".format(self.playerTurn))
-
-                self.reset()
+                self.headerText = "PLAYER {} WINS!".format(self.playerTurn)
+                self.update_text()
                 return True
 
 if __name__ == "__main__":
